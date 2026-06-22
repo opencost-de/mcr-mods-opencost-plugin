@@ -1,9 +1,15 @@
 <?xml version="1.0"?>
 
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-targetNamespace="https://opencost.de"
-xmlns:opencost="https://opencost.de"
-elementFormDefault="qualified">
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+    targetNamespace="https://opencost.de"
+    xmlns="https://opencost.de"
+    xmlns:opencost="https://opencost.de"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified"
+    xpathDefaultNamespace="https://opencost.de"
+    vc:minVersion="1.1">
 
 <xs:include schemaLocation="opencost_types_intern.xsd" />
 
