@@ -1,43 +1,82 @@
 <?xml version="1.0"?>
 
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-targetNamespace="https://opencost.de"
-xmlns="https://opencost.de"
-elementFormDefault="qualified">
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+    targetNamespace="https://opencost.de"
+    xmlns="https://opencost.de"
+    xmlns:opencost="https://opencost.de"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified"
+    xpathDefaultNamespace="https://opencost.de"
+    vc:minVersion="1.1">
 
+<!--
+Note: The namespace is important for asserts!
+
+By the definition in
+
+    <xs:schema xmlns=...>
+
+sets ths the _XML prefix_ to `openCost` as the default namespace.
+`xpathDefaultNamespace` should also do this for the XPath namespace.
+However, not all validators honor this definition, so it is safer
+to prefix `opencost:` explcitly.
+
+As a free CLI validator use python3-xmlschema.
+-->
+
+<xs:annotation>
+  <xs:appinfo>Generic openCost internal storage format</xs:appinfo>
+  <xs:documentation xml:lang="en">
+    The purpose of this format is to give a generic description
+    which data elements should be stored to caputure publication
+    costs beyond the fields required to fill the openCost exchange
+    format.
+
+    Therefore, this format is an _extension_ of the openCost exchange
+    format and derives itself from openCost by adding new fields
+    and extended definitions. However, it shares most fields and
+    especially all normalized values with openCost.
+
+    Technical note: XML schema can not _extend_ `xs:all` elements
+    that are commonly used in openCost. The work around consists in
+    using `xs:restrict` for types that need to be extended and repeat
+    all entries from the original element.
+  </xs:documentation>
+</xs:annotation>
+
+
+<!-- ************************************************************ -->
+<!--       begin of extensions of exchange format elements        -->
 <xs:redefine schemaLocation="opencost_types.xsd">
 
-    <xs:annotation>
-      <xs:appinfo>Generic openCost internal storage format</xs:appinfo>
-      <xs:documentation xml:lang="en">
-        The purpose of this format is to give a generic description
-        which data elements should be stored to caputure publication
-        costs beyond the fields required to fill the openCost exchange
-        format.
-
-        Therefore, this format is an _extension_ of the openCost exchange
-        format and derives itself from openCost by adding new fields
-        and extended definitions. However, it shares most fields and
-        especially all normalized values with openCost.
-
-        Technical note: XML schema can not _extend_ `xs:all` elements
-        that are commonly used in openCost. The work around consists in
-        using `xs:restrict` for types that need to be extended and repeat
-        all entries from the original element.
-      </xs:documentation>
-    </xs:annotation>
-
     <xs:complexType name="publication_type">
+        <xs:annotation>
+          <xs:appinfo>Top level element of the storage format</xs:appinfo>
+          <xs:documentation xml:lang="en">
+            Extend the field `publication` by additional values
+            required for the storage formats. Note that the use of
+            `extension` ensures that all elements from the exchange
+            format element are still valid.
+
+            **Note** tests that span several sub-elements have to be
+            palced here, as otherwise the schema processor may not see
+            the relevant entries.
+          </xs:documentation>
+        </xs:annotation>
         <xs:complexContent>
-            <xs:restriction base="publication_type">
-                <xs:all>
+            <xs:extension base="publication_type">
+                    <!--
                     <xs:element name="primary_identifier" type="publication_primary_identifier" minOccurs="0" />
                     <xs:element name="secondary_identifiers" type="publication_secondary_identifiers" minOccurs="0" />
                     <xs:element name="institution" type="institution_type" minOccurs="0" />
                     <xs:element name="publication_type" type="coar_publication_type" minOccurs="0" />
                     <xs:element name="external_costsplitting" type="xs:boolean" minOccurs="0" />
                     <xs:element name="cost_data" type="publication_cost_data_type" />
+                    -->
 
+                <xs:all>
                     <!-- TODO check mandatory / optional -->
                     <xs:element name="manuscript_id"     minOccurs="0" type="xs:string" />
                     <!-- FIXME naming things -->
@@ -45,49 +84,96 @@ elementFormDefault="qualified">
                     <xs:element name="approval"          minOccurs="0" type="xs:boolean" />
                     <xs:element name="eligible"          minOccurs="0" type="eligible_type" />
                 </xs:all>
-            </xs:restriction>
+                <!--
+                If there is any contract-based payment a contract has to be linked
+                Note: it is enogh to test for global presence as there is only one
+                      openCost block per record and this schema is meant to define
+                      exactly this one record stored.
+                -->
+                <xs:assert test="
+                    not(exists(//opencost:payment_model[. = 'contract-based']))
+                    or (
+                        ( exists(//opencost:part_of_contract) and
+                          string-length(normalize-space(//opencost:primary_identifier/value)) > 0 and
+                          string-length(normalize-space(//opencost:primary_identifier/type)) > 0
+                        )
+                    )
+                "/>
+            </xs:extension>
         </xs:complexContent>
     </xs:complexType>
 
     <xs:complexType name="publication_amount_paid_type">
+        <xs:annotation>
+          <xs:appinfo>amount_paid block</xs:appinfo>
+          <xs:documentation xml:lang="en">
+            Extend the field `amount_paid` by additional values
+            required for the storage formats. Note that the use of
+            `extension` ensures that all elements from the exchange
+            format element are still valid.
+
+            The necessary extensions are related to the internal
+            workflow (e.g `payment status` or `payment_method`) or the
+            uplinks to the local accounting system. At this point also
+            localy visible comments are added.
+          </xs:documentation>
+        </xs:annotation>
         <xs:complexContent>
-            <xs:restriction base="publication_amount_paid_type">
-                <xs:all>
+            <xs:extension base="publication_amount_paid_type">
+                <!--
                     <xs:element name="currency" type="currency" />
                     <xs:element name="amount" type="xs:decimal" />
                     <xs:element name="cost_type" type="publication_cost_type" />
                     <xs:element name="vat" type="xs:decimal" minOccurs="0" />
+                    -->
 
+                <xs:all>
                     <!-- TODO check mandatory / optional -->
                     <xs:element name="payment_status"                    type="payment_status_type" />
                     <xs:element name="payment_method"      minOccurs="0" type="payment_method_type" />
-                    <!-- FIXME payment model may require isPartOfContract entries -->
                     <xs:element name="payment_model"                     type="publication_payment_model_type" />
 
                     <!-- TODO should `orignal_` be `invoice_`` -->
                     <xs:element name="original_currency"   minOccurs="0" type="currency" />
                     <xs:element name="original_amount"     minOccurs="0" type="xs:decimal" />
 
-                    <xs:element name="gl_account"                        type="xs:string" />
                     <xs:element name="paying_unit"                       type="xs:string" />
+                    <xs:element name="gl_account"                        type="xs:string" />
                     <xs:element name="cost_centre"                       type="xs:string" />
                     <xs:element name="transfer_reference"  minOccurs="0" type="xs:string" />
                     <xs:element name="comment"             minOccurs="0" type="xs:string" />
                     <xs:element name="processing_date"                   type="date_format" />
+
                 </xs:all>
-            </xs:restriction>
+                <xs:assert test="not(exists(original_amount)) or (string(original_amount) castable as xs:float)"/>
+                <xs:assert test="not(exists(amount)) or (string(amount) castable as xs:float)"/>
+                <xs:assert test="not(exists(vat)) or (string(vat) castable as xs:float)"/>
+                <!-- if the payment is article based, the payment_method is mandatory -->
+                <xs:assert test="
+                    opencost:payment_model = 'contract-based'
+                    or exists(opencost:payment_method)
+                "/>
+                </xs:extension>
         </xs:complexContent>
     </xs:complexType>
 
     <xs:complexType name="contract_amount_paid_type">
+        <xs:annotation>
+          <xs:appinfo>Payments for contract objects</xs:appinfo>
+          <xs:documentation xml:lang="en">
+
+          </xs:documentation>
+        </xs:annotation>
         <xs:complexContent>
-            <xs:restriction base="contract_amount_paid_type">
-                <xs:all>
+            <xs:extension base="contract_amount_paid_type">
+            <!--
                     <xs:element name="currency" type="currency" />
                     <xs:element name="amount" type="xs:decimal" />
                     <xs:element name="cost_type" type="contract_cost_type" />
                     <xs:element name="vat" type="xs:decimal" minOccurs="0" />
+                    -->
 
+                <xs:all>
                     <xs:element name="payment_status"                    type="payment_status_type" />
                     <xs:element name="payment_method"      minOccurs="0" type="payment_method_type" />
                     <xs:element name="payment_model"                     type="contract_payment_model_type" />
@@ -103,12 +189,15 @@ elementFormDefault="qualified">
                     <xs:element name="comment"             minOccurs="0" type="xs:string" />
                     <xs:element name="processing_date"                   type="date_format" />
                 </xs:all>
-            </xs:restriction>
+            </xs:extension>
         </xs:complexContent>
     </xs:complexType>
 
 </xs:redefine>
+<!--        end of extensions of exchange format elements         -->
+<!-- ************************************************************ -->
 
+<!-- Add new types required only in within the storage format      -->
 <xs:simpleType name="payment_status_type">
   <xs:restriction base="xs:string">
     <xs:enumeration value="payment instructed" />
@@ -176,6 +265,32 @@ elementFormDefault="qualified">
 </xs:complexType>
 
 <xs:complexType name="eligible_type">
+  <!--
+      TODO should we use the costDistribution structure?
+    This would, however, require several interconnected fields as the
+    awardTitle, number, funder-id and funder-name have to be set
+    consistently. A flat structure would allow for the use of simple
+    vocabularies.
+  -->
+  <!--
+        <costDistribution>
+          <fundingReferences>
+            <fundingReference>
+              <awardTitle>Open-Access-Publikationskosten / 2025-2027 / DESY Hamburg</awardTitle>
+              <funderIdentifier funderIdentifierType="ROR">https://ror.org/018mejw64</funderIdentifier>
+              <funderName>Deutsche Forschungsgemeinschaft</funderName>
+              <awardNumber awardURI="https://gepris.dfg.de/gepris/projekt/491245950">491245950</awardNumber>
+              <amounts_paid>
+                <amount_paid>
+                  <amount>1400.00</amount>
+                  <currency>EUR</currency>
+                  <cost_type>gold-oa</cost_type>
+                </amount_paid>
+              </amounts_paid>
+            </fundingReference>
+          </fundingReferences>
+      </costDistribution>
+  -->
   <xs:sequence>
     <xs:element name="fund" minOccurs="1" maxOccurs="unbounded" type="eligible_id_type" />
   </xs:sequence>
